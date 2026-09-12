@@ -125,3 +125,20 @@ Terraform).
 
 `terraform/cicd/backend/` (FEAT-40) segue o mesmo padrão — seção
 equivalente a ser acrescentada quando aquela etapa mover os arquivos.
+
+### States órfãos no bucket (limpeza pendente)
+
+Cada etapa de migração deixa o objeto de state de origem, no monorepo,
+vazio (só `data.*`, quando existe algum, ou zerado por completo) — o
+objeto em si não é apagado do bucket, só esvaziado de recursos:
+
+| Objeto no bucket (monorepo) | Etapa que esvaziou | Status |
+|---|---|---|
+| `gastosapp-frontend/dns/terraform.tfstate` | FEAT-34, etapa 2 | Órfão — só `data.terraform_remote_state.{hom,prod}` |
+| `gastosapp-frontend/cicd/terraform.tfstate` | já vazio antes da FEAT-34 (nunca teve recurso gerenciado) | Órfão |
+
+Decisão do usuário (2026-09-12, `plan.md` §7.3 da FEAT-34): **deixar os
+objetos órfãos no bucket** até o final da FEAT-40 (backend) — quando os
+dois contextos terminarem suas migrações, uma limpeza única remove (com
+aprovação explícita) os objetos órfãos dos dois lados de uma vez, em
+vez de duas rodadas separadas.
