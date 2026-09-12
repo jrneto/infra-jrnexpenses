@@ -74,9 +74,54 @@ public access block + encryption + policy) — o monorepo passa a ler
 outputs (ex. ARN da distribuição CloudFront) daqui via
 `terraform_remote_state`, nunca o inverso.
 
-### `cicd/` — OIDC Provider + IAM Role (fora do state)
+### `cicd/frontend/` — OIDC Provider + IAM Role (fora do state, gerenciados manualmente)
 
-Ver seção equivalente em `frontend/infra/terraform/README.md` do
-monorepo (motivo do guardrail, ARNs dos recursos existentes, comando de
-`import` para quando a permissão for liberada) — movida para cá quando
-`terraform/cicd/frontend/` for populado (FEAT-34, etapa 1).
+`terraform/cicd/frontend/` contém o código de referência (`oidc.tf`,
+`iam-role.tf`, `iam-policy.tf`) para o OIDC Provider do GitHub Actions e
+a IAM Role assumida pelos workflows de deploy do frontend
+(`.github/workflows/frontend-deploy-{hom,prod}.yml`, no monorepo) — mas
+**os recursos reais foram criados manualmente no console AWS, não pelo
+Terraform**, e não estão no state desta config.
+
+**Motivo**: tanto `terraform apply` (criação) quanto `terraform import`
+(trazer o que já existe) falham com `AccessDenied` — o perfil usado
+(`agent-toolkit`, role `AWSReservedSSO_Perfil-Admin-Desenvolvedor`) não
+tem permissão para nenhuma ação de leitura/escrita sobre
+`aws_iam_openid_connect_provider`/Role relacionadas
+(`iam:CreateOpenIDConnectProvider`, `iam:GetOpenIDConnectProvider`,
+`iam:ListOpenIDConnectProviders`, `iam:GetRole`, `iam:GetRolePolicy`,
+`iam:ListRolePolicies` — todas negadas), mesmo sendo um perfil
+"Admin-Desenvolvedor". Aparenta ser um guardrail intencional (permission
+set ou SCP da AWS Organization) contra ações de federação de
+identidade/IAM, independente da permissão de admin no restante da
+conta.
+
+**Recursos existentes na conta** (criados manualmente, 2026-08-08):
+- OIDC Provider: `arn:aws:iam::648443184523:oidc-provider/token.actions.githubusercontent.com`
+- IAM Role: `arn:aws:iam::648443184523:role/gastosapp-frontend-cicd`
+  - Trust policy e policy inline (`gastosapp-frontend-cicd-deploy`)
+    criadas **byte a byte iguais** ao que `iam-role.tf`/`iam-policy.tf`
+    gerariam — conferido visualmente no console (não via `terraform
+    plan`, que também não funciona sem essas permissões).
+
+**Se a permissão for liberada no futuro** (permission set/SCP ajustado
+para permitir as ações acima), trazer para o state com:
+```bash
+cd terraform/cicd/frontend
+terraform import aws_iam_openid_connect_provider.github \
+  arn:aws:iam::648443184523:oidc-provider/token.actions.githubusercontent.com
+terraform import aws_iam_role.frontend_cicd gastosapp-frontend-cicd
+terraform import aws_iam_role_policy.frontend_cicd \
+  gastosapp-frontend-cicd:gastosapp-frontend-cicd-deploy
+terraform plan   # deve dar "No changes" se o console bateu com o .tf
+```
+
+**Uso pelos workflows**: o ARN da Role
+(`arn:aws:iam::648443184523:role/gastosapp-frontend-cicd`) é cadastrado
+como variável `CICD_ROLE_ARN` nos GitHub Environments `hom`/`prod` (no
+monorepo) — não depende do state do Terraform para funcionar, só do
+recurso existir de fato na conta (que existe, só não está sob
+Terraform).
+
+`terraform/cicd/backend/` (FEAT-40) segue o mesmo padrão — seção
+equivalente a ser acrescentada quando aquela etapa mover os arquivos.
