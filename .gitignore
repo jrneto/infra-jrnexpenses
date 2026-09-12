@@ -1,6 +1,9 @@
 # Local .terraform directories
 .terraform/
 
+# Terraform lock file (prática do monorepo: não versionar)
+.terraform.lock.hcl
+
 # .tfstate files
 *.tfstate
 *.tfstate.*
