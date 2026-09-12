@@ -19,7 +19,7 @@ variable "state_bucket" {
 variable "prod_state_key" {
   description = "Key do state da config environments/prod/, lida via terraform_remote_state."
   type        = string
-  default     = "gastosapp-frontend/prod/terraform.tfstate"
+  default     = "infra-jrnexpenses/prod/terraform.tfstate"
 }
 
 variable "hom_state_key" {
