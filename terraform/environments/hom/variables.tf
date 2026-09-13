@@ -15,3 +15,35 @@ variable "frontend_bucket_name" {
   type        = string
   default     = "gastosapp-frontend-hom"
 }
+
+# Backend (FEAT-40, etapa 6)
+
+variable "table_name" {
+  description = "Nome da tabela DynamoDB de homologação do backend (backend-dynamodb.tf)."
+  type        = string
+  default     = "GastosApp-Hom"
+}
+
+variable "frontend_origins" {
+  description = "Origens de CORS liberadas no API Gateway do backend, homologação (backend-api-gateway.tf)."
+  type        = list(string)
+  default     = ["https://hom.jrnexpenses.com"]
+}
+
+variable "backend_api_function_name" {
+  description = "Nome da função Lambda da API do backend, homologação — gerenciada no monorepo, lida aqui por data source (ver backend-data.tf)."
+  type        = string
+  default     = "gastos-app-api-hom"
+}
+
+variable "backend_account_trigger_function_name" {
+  description = "Nome da função Lambda do trigger PostConfirmation do Cognito, homologação — gerenciada no monorepo, lida aqui por data source (ver backend-data.tf)."
+  type        = string
+  default     = "jrnexpenses-account-trigger-hom"
+}
+
+variable "backend_custom_message_trigger_function_name" {
+  description = "Nome da função Lambda do trigger CustomMessage do Cognito, homologação — gerenciada no monorepo, lida aqui por data source (ver backend-data.tf)."
+  type        = string
+  default     = "jrnexpenses-custom-message-trigger-hom"
+}
