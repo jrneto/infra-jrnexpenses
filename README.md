@@ -214,3 +214,12 @@ objetos órfãos no bucket** até o final da FEAT-40 (backend) — quando os
 dois contextos terminarem suas migrações, uma limpeza única remove (com
 aprovação explícita) os objetos órfãos dos dois lados de uma vez, em
 vez de duas rodadas separadas.
+
+**Não confundir com os states de workload, que continuam em uso** (não
+são órfãos): `gastosapp/hom/terraform.tfstate` (backend, workload —
+migração da plataforma concluída na FEAT-40 etapa 6) e
+`gastosapp-frontend/hom/terraform.tfstate` (frontend, workload) seguem
+sendo os states do monorepo que a Lambda/S3 de hom realmente usam.
+`gastosapp/prod/terraform.tfstate` segue com a plataforma **completa**
+ainda dentro do monorepo até a etapa 7 da FEAT-40 — não é workload
+ainda, é o state de produção intacto (pré-migração).
