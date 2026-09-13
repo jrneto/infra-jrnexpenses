@@ -36,7 +36,7 @@ monorepo): `gastosapp-terraform-state-648443184523`, `us-east-1`,
 | `terraform/environments/hom/` | `infra-jrnexpenses/hom/terraform.tfstate` | plataforma completa de hom (frontend: OAC/CloudFront/ACM/WAF; backend: entra na FEAT-40) |
 | `terraform/environments/prod/` | `infra-jrnexpenses/prod/terraform.tfstate` | idem, prod |
 | `terraform/cicd/{frontend,backend}/` | — (fora de state) | referência de OIDC Provider + IAM Role, guardrail IAM (ver abaixo) |
-| `terraform/bootstrap/` (FEAT-40) | state local | bucket de state em si — nunca gerenciado pelo próprio bucket que descreve |
+| `terraform/bootstrap/` | state local | bucket de state em si — nunca gerenciado pelo próprio bucket que descreve |
 
 **Um state por ambiente, não por contexto**: `environments/{hom,prod}/`
 é a plataforma inteira daquele ambiente (frontend + backend juntos) —
