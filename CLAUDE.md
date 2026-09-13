@@ -26,17 +26,32 @@ quê, e o mecanismo de migração de state usado).
 
 ## Bucket de state e mapa de keys
 
-Mesmo bucket de sempre (criado pelo `bootstrap/` do backend, no
-monorepo): `gastosapp-terraform-state-648443184523`, `us-east-1`,
+Mesmo bucket de sempre (criado pelo `bootstrap/`, hoje neste
+repositório — movido do monorepo do backend na FEAT-40, etapa 5):
+`gastosapp-terraform-state-648443184523`, `us-east-1`,
 `use_lockfile = true`. Init sempre parcial, via `-backend-config`.
 
 | Config | Key | Conteúdo |
 |---|---|---|
 | `terraform/dns/` | `infra-jrnexpenses/dns/terraform.tfstate` | hosted zone `jrnexpenses.com.` + records (persistente, `prevent_destroy`) |
-| `terraform/environments/hom/` | `infra-jrnexpenses/hom/terraform.tfstate` | plataforma completa de hom (frontend: OAC/CloudFront/ACM/WAF; backend: entra na FEAT-40) |
-| `terraform/environments/prod/` | `infra-jrnexpenses/prod/terraform.tfstate` | idem, prod |
-| `terraform/cicd/{frontend,backend}/` | — (fora de state) | referência de OIDC Provider + IAM Role, guardrail IAM (ver abaixo) |
+| `terraform/environments/hom/` | `infra-jrnexpenses/hom/terraform.tfstate` | plataforma completa de hom (frontend: OAC/CloudFront/ACM/WAF; backend: DynamoDB, Cognito, Parameter Store, SES, API Gateway, domínio `api-hom` — FEAT-40, etapa 6, 24 endereços/26 instâncias) |
+| `terraform/environments/prod/` | `infra-jrnexpenses/prod/terraform.tfstate` | idem, prod (backend — FEAT-40, etapa 7, 24 endereços/26 instâncias) |
+| `terraform/cicd/frontend/` | — (fora de state) | referência de OIDC Provider + IAM Role do frontend, guardrail IAM (ver abaixo) |
+| `terraform/cicd/backend/` | `gastosapp-backend/cicd/terraform.tfstate` (**populado**, ver nota abaixo) | referência de OIDC Provider + IAM Role do backend |
 | `terraform/bootstrap/` | state local | bucket de state em si — nunca gerenciado pelo próprio bucket que descreve |
+
+**Achado no fechamento da FEAT-40 (etapa 8, 2026-09-13)**: ao contrário
+do que esta seção afirmava até então (`cicd/{frontend,backend}/`
+sempre "fora de state"), o objeto
+`gastosapp-backend/cicd/terraform.tfstate` **contém**
+`aws_iam_role.backend_cicd` e `aws_iam_role_policy.backend_cicd`
+gerenciados (serial 5, `terraform_version` 1.15.8 — sem registro de
+quando/como isso aconteceu, contradizendo o guardrail de IAM descrito
+abaixo). `terraform/cicd/frontend/` continua genuinamente fora de
+state (confirmado: só `data.aws_iam_policy_document`). Por isso o
+objeto do backend **não** foi removido na limpeza de states órfãos —
+ele não é órfão. Ver `backend/infra/CLAUDE.md` no monorepo para o
+mesmo achado do lado do backend.
 
 **Um state por ambiente, não por contexto**: `environments/{hom,prod}/`
 é a plataforma inteira daquele ambiente (frontend + backend juntos) —
@@ -77,13 +92,19 @@ inclusive por agentes de IA) **não tem permissão para gerenciar IAM**
 guardrail intencional contra federação de identidade sendo criada/
 alterada de forma autônoma. Por isso:
 
-- `terraform/cicd/{frontend,backend}/` existe só como **referência**
-  (arquivos `.tf` documentando o que foi criado manualmente no console),
-  **fora de qualquer state** — `apply`/`import` falhariam com
-  `AccessDenied`.
-- Trazer `cicd/` para dentro de state (via `import`) continua bloqueado
-  até o guardrail ser revisto — não tentar sem alinhar com o usuário
-  antes.
+- `terraform/cicd/{frontend,backend}/` existe como **referência**
+  (arquivos `.tf` documentando o que foi criado/está criado no
+  console). `cicd/frontend/` está genuinamente fora de state (confirmado
+  no fechamento da FEAT-40, etapa 8 — `apply`/`import` falhariam com
+  `AccessDenied` com o perfil `agent-toolkit`). `cicd/backend/`,
+  **surpreendentemente, já está em state** (ver "Bucket de state e
+  mapa de keys" acima) — um `import`/`apply` de fato aconteceu em
+  algum momento não documentado, antes do guardrail ter sido
+  totalmente mapeado, ou com um profile diferente do `agent-toolkit`.
+- Trazer o restante de `cicd/` para dentro de state (via `import`)
+  continua bloqueado pelo guardrail — não tentar sem alinhar com o
+  usuário antes, e sem assumir que o mesmo guardrail nunca foi
+  contornado no passado.
 
 ## Assinatura ao plano Free do CloudFront
 

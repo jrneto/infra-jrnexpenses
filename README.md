@@ -198,7 +198,7 @@ terraform plan   # deve dar "No changes" se o console bateu com o .tf
 (no monorepo) — não depende do state do Terraform para funcionar, só do
 recurso existir de fato na conta.
 
-### States órfãos no bucket (limpeza pendente)
+### States órfãos no bucket (limpeza concluída na FEAT-40, etapa 8)
 
 Cada etapa de migração deixa o objeto de state de origem, no monorepo,
 vazio (só `data.*`, quando existe algum, ou zerado por completo) — o
@@ -206,20 +206,23 @@ objeto em si não é apagado do bucket, só esvaziado de recursos:
 
 | Objeto no bucket (monorepo) | Etapa que esvaziou | Status |
 |---|---|---|
-| `gastosapp-frontend/dns/terraform.tfstate` | FEAT-34, etapa 2 | Órfão — só `data.terraform_remote_state.{hom,prod}` |
-| `gastosapp-frontend/cicd/terraform.tfstate` | já vazio antes da FEAT-34 (nunca teve recurso gerenciado) | Órfão |
+| `gastosapp-frontend/dns/terraform.tfstate` | FEAT-34, etapa 2 | **Removido** em 2026-09-13 (confirmado: só `data.terraform_remote_state.{hom,prod}`, aprovado pelo usuário) |
+| `gastosapp-frontend/cicd/terraform.tfstate` | já vazio antes da FEAT-34 (nunca teve recurso gerenciado) | **Removido** em 2026-09-13 (confirmado: só `data.aws_iam_policy_document`, aprovado pelo usuário) |
 
-Decisão do usuário (2026-09-12, `plan.md` §7.3 da FEAT-34): **deixar os
-objetos órfãos no bucket** até o final da FEAT-40 (backend) — quando os
-dois contextos terminarem suas migrações, uma limpeza única remove (com
-aprovação explícita) os objetos órfãos dos dois lados de uma vez, em
-vez de duas rodadas separadas.
+Decisão do usuário (2026-09-12, `plan.md` §7.3 da FEAT-34): deixar os
+objetos órfãos no bucket até o final da FEAT-40 (backend), para uma
+limpeza única dos dois lados de uma vez — feito no fechamento da
+FEAT-40 (etapa 8, 2026-09-13), um `aws s3 rm` por objeto, cada um
+aprovado individualmente depois de conferir o conteúdo.
+
+**`gastosapp-backend/cicd/terraform.tfstate` não entrou nessa
+limpeza** — não é órfão: contém `aws_iam_role.backend_cicd` e
+`aws_iam_role_policy.backend_cicd` gerenciados (achado da etapa 8, ver
+"Bucket de state e mapa de keys" acima).
 
 **Não confundir com os states de workload, que continuam em uso** (não
-são órfãos): `gastosapp/hom/terraform.tfstate` (backend, workload —
-migração da plataforma concluída na FEAT-40 etapa 6) e
-`gastosapp-frontend/hom/terraform.tfstate` (frontend, workload) seguem
-sendo os states do monorepo que a Lambda/S3 de hom realmente usam.
-`gastosapp/prod/terraform.tfstate` segue com a plataforma **completa**
-ainda dentro do monorepo até a etapa 7 da FEAT-40 — não é workload
-ainda, é o state de produção intacto (pré-migração).
+são órfãos): `gastosapp/{hom,prod}/terraform.tfstate` (backend,
+workload — migração da plataforma concluída nas etapas 6 e 7 da
+FEAT-40) e `gastosapp-frontend/{hom,prod}/terraform.tfstate`
+(frontend, workload) seguem sendo os states do monorepo que as
+Lambdas/o bucket S3 de hom e prod realmente usam.
